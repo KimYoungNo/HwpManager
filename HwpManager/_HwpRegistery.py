@@ -3,7 +3,7 @@ import subprocess
 from enum import Enum
 
 class HwpSecurityReg(str, Enum):
-    base_path = os.path.join(os.getcwd(), "Windows_HwpSecurityModule_Register")
+    base_path = os.path.join(os.path.dirname(__file__), "Windows_HwpSecurityModule_Register")
     register_path = os.path.join(base_path, "Register.bat")
     unregister_path = os.path.join(base_path, "Unregister.bat")
 
