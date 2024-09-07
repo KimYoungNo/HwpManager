@@ -23,6 +23,9 @@ def HwpSecurityModuleUnregister():
 
 
 class HwpSecurityModule:
+    def __str__(self):
+        return "HwpSecurityModule.dll"
+        
     def __enter__(self):
         HwpSecurityModuleRegister()
         
