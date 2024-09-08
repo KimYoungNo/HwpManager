@@ -1,7 +1,10 @@
+import time
 import pythoncom as pycom
 import win32con as con32
 import win32gui as gui32
 import win32com.client as win32
+from collections import deque
+from dataclasses import dataclass
 from ._HwpRegistery import HwpSecurityModule
 
 def _enumerate_hwps():
@@ -10,6 +13,7 @@ def _enumerate_hwps():
 
     hwp_monikers = tuple(moniker for moniker in running_coms.EnumRunning()
         if "!HwpObject"==moniker.GetDisplayName(context, moniker).split('.', 1)[0])
+    
     return tuple(com32.Dispatch(running_coms.GetObject(moniker).QueryInterface(IID_IDispatch))
         for moniker in hwp_monikers)
 
@@ -36,55 +40,85 @@ def _new_hwp():
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject")
     return _register_hwp(hwp)
 
-
 def _register_hwp(hwp):
     hwp.RegisterModule("FilePathCheckDLL", str(HwpSecurityModule))
     return hwp
 
-class HwpManager:
-    _n_instances = 0
+def _is_alive_hwp(hwp):
+    try:
+        hwp.XHwpDocuments.Active_XHwpDocument.FullName
+    except:
+        return False
+    else:
+        return True
+
+@dataclass(init=True)
+class InstanceOccupied:
+    instance: object
+    occupied: bool
     
-    def __new__(cls, *args, **kwargs):
-        cls._n_instances += 1
-        
-        if cls._n_instances == 1:
-            HwpSecurityModule.Register()
-        return object.__new__(cls)
+    def __bool__(self):
+        return self.occupied
 
-    @classmethod
-    def __del__(cls):
-        cls._n_instances -= 1
-
-        if cls._n_instances == 0:
-            HwpSecurityModule.Unregister()
-
-    @classmethod
-    def __len__(cls):
-        return cls._n_instances
+class HwpManager:
+    _hwps = deque()
         
     def __init__(self):
-        self._hwp = None
+        self._hwp_id = None
 
     def __getattr__(self, name):
-        if self._hwp is not None:
-            return getattr(self._hwp, name)
+        if self._hwp_id is not None:
+            return getattr(self.__class__._hwps[self._hwp_id].instance, name)
         else:
             raise AttributeError()
 
-    def New(self):
-        while self._hwp is None:
-            self._hwp = _new_hwp()
+    def __del__(self):
+        self.Release()
+
+    @classmethod
+    def __len__(cls):
+        return len(cls._hwps)
+
+    @classmethod
+    def __getitem__(cls, index):
+        return cls._hwps[index].instance
+
+    @classmethod
+    def _RenewSecurityModule(cls):
+        _len = len(cls._hwps)
+        
+        if _len < 1:
+            HwpSecurityModule.Unregister()
+        elif _len == 1:
+            HwpSecurityModule.Register()
+
+    @classmethod
+    def New(cls):
+        cls._hwps.append(InstanceOccupied(_new_hwp(), False))
+        cls._RenewSecurityModule()
 
     def Grab(self):
-        while self._hwp is None:
-            self._hwp = _grab_hwp()
+        self.__class__._hwps.append(InstanceOccupied(_grab_hwp(), True))
+        self._hwp_id = -1
+        self._RenewSecurityModule()
+
+    def Select(self, nth):
+        hwps = self.__class__._hwps
+        self._hwp_id = nth % len(hwps)
+        hwps[self._hwp_id].occupied = True
 
     def Release(self):
-        if self._hwp is not None:
+        if self._hwp_id is not None:
+            hwps = self.__class__._hwps
+            hwp = hwps[self._hwp_id].instance
+            
             try:
-                self._hwp.Quit()
+                hwp.Quit()
             except:
                 pass
-            self._hwp = None
+                
+            hwps[self._hwp_id].occupied = False
+            self._hwp_id = None
+        self._RenewSecurityModule()
 
     
