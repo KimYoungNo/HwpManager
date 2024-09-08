@@ -14,12 +14,6 @@ for pth in HwpSecurityReg:
 
 def _RunBatch(batch_path, **kwargs):
     return subprocess.run([batch_path], **kwargs)
-    
-def HwpSecurityModuleRegister():
-    return _RunBatch(HwpSecurityReg.register_path.value, timeout=5)
-    
-def HwpSecurityModuleUnregister():
-    return _RunBatch(HwpSecurityReg.unregister_path.value, timeout=5)
 
 
 class HwpSecurityModule:
@@ -27,7 +21,15 @@ class HwpSecurityModule:
         return "HwpSecurityModule.dll"
         
     def __enter__(self):
-        HwpSecurityModuleRegister()
+        self.Register()
         
     def __exit__(self, exc_val, exc_type, exc_trace):
-        HwpSecurityModuleUnregister()
+        self.Unregister()
+
+    @staticmethod
+    def Register():
+        return _RunBatch(HwpSecurityReg.register_path.value, timeout=5)
+
+    @staticmethod
+    def Unregister():
+        return _RunBatch(HwpSecurityReg.unregister_path.value, timeout=5)
