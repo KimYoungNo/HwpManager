@@ -7,8 +7,21 @@ def _new_hwp():
     return hwp
 
 class HwpManager:
+    _n_instances = 0
+    
+    def __new__(cls, *args, **kwargs):
+        cls._n_insts += 1
+        
+        if cls._n_instances == 1:
+            HwpSecurityModule.Register()
+        return object.__new__(cls)
+        
     def __init__(self, run_new=True, visible=True):
-        HwpSecurityModule.Register()
+        pass
 
-    def __del__(self):
-        HwpSecurityModule.Unregister()
+    @classmethod
+    def __del__(cls):
+        cls._n_insts -= 1
+
+        if cls._n_instances == 0:
+            HwpSecurityModule.Unregister()
