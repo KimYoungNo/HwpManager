@@ -24,7 +24,7 @@ def _grab_hwnd_hwp():
                 filepath, filename = hwp.XHwpDocuments.Active_XHwpDocument.FullName.rsplit('\\')
             
                 if f"{filename} [{filepath}\\] - 한글" == window_name:
-                    return hwnd, hwp
+                    return hwnd, _register_hwp(hwp)
             except:
                 continue
     return None, None
@@ -33,14 +33,17 @@ def _grab_hwp():
     return _grab_hwnd_hwp()[1]
     
 def _new_hwp():
-    hwp = win32.gencache.EnsureDispatch('HWPFrame.HwpObject')
+    hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject")
+    return _register_hwp(hwp)
+
+
+def _register_hwp(hwp):
     hwp.RegisterModule("FilePathCheckDLL", str(HwpSecurityModule))
     return hwp
 
-
-class _HwpInstances:
+class HwpManager:
     _n_instances = 0
-
+    
     def __new__(cls, *args, **kwargs):
         cls._n_instances += 1
         
@@ -58,10 +61,8 @@ class _HwpInstances:
     @classmethod
     def __len__(cls):
         return cls._n_instances
-
-class HwpManager(_HwpInstances):
-    def __init__(self, run_new=True, visible=True):
-        super().__init__()
+        
+    def __init__(self):
         self._hwp = None
 
     def __getattr__(self, name):
@@ -69,5 +70,21 @@ class HwpManager(_HwpInstances):
             return getattr(self._hwp, name)
         else:
             raise AttributeError()
+
+    def New(self):
+        while self._hwp is None:
+            self._hwp = _new_hwp()
+
+    def Grab(self):
+        while self._hwp is None:
+            self._hwp = _grab_hwp()
+
+    def Release(self):
+        if self._hwp is not None:
+            try:
+                self._hwp.Quit()
+            except:
+                pass
+            self._hwp = None
 
     
