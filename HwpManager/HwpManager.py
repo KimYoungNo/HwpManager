@@ -92,10 +92,10 @@ class HwpManager:
         elif _len == 1:
             HwpSecurityModule.Register()
 
-    @classmethod
-    def New(cls):
-        cls._hwps.append(InstanceOccupied(_new_hwp(), False))
-        cls._RenewSecurityModule()
+    def New(self):
+        self.__class__._hwps.append(InstanceOccupied(_new_hwp(), True))
+        self._hwp_id = -1
+        self._RenewSecurityModule()
 
     def Grab(self):
         self.__class__._hwps.append(InstanceOccupied(_grab_hwp(), True))
@@ -104,21 +104,27 @@ class HwpManager:
 
     def Select(self, nth):
         hwps = self.__class__._hwps
-        self._hwp_id = nth % len(hwps)
-        hwps[self._hwp_id].occupied = True
+        hwp_id = nth % len(hwps)
+        
+        if not hwps[hwp_id].occupied:
+            hwps[hwp_id].occupied = True
+            hwps[self._hwp_id].occupied = False
+            self._hwp_id = hwp_id
+        else:
+            IndexError("Pre-ocuupied Instance Selected")
 
     def Release(self):
         if self._hwp_id is not None:
-            hwps = self.__class__._hwps
-            hwp = hwps[self._hwp_id].instance
-            
-            try:
-                hwp.Quit()
-            except:
-                pass
-                
-            hwps[self._hwp_id].occupied = False
+            self.__class__._hwps[self._hwp_id].occupied = False
             self._hwp_id = None
         self._RenewSecurityModule()
-
+    
+    @classmethod
+    def QuitAll(cls):
+        for hwp in cls._hwps:
+            try:
+                hwp.instance.Quit()
+            except:
+                pass
+        cls._hwps.clear()
     
