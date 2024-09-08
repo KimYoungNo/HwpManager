@@ -63,8 +63,8 @@ class InstanceOccupied:
 class HwpManager:
     _hwps = deque()
         
-    def __init__(self):
-        self._hwp_id = None
+    def __init__(self, hwp_id=None):
+        self._hwp_id = hwp_id
 
     def __getattr__(self, name):
         if self._hwp_id is not None:
