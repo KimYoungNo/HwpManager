@@ -23,7 +23,7 @@ class HwpSecurityModule:
     def __enter__(self):
         self.Register()
         
-    def __exit__(self, exc_val, exc_type, exc_trace):
+    def __exit__(self, *_):
         self.Unregister()
 
     @staticmethod
