@@ -70,7 +70,7 @@ class HwpManager:
         if self._hwp_id is not None:
             return getattr(self.__class__._hwps[self._hwp_id].instance, name)
         else:
-            raise AttributeError()
+            raise ValueError()
 
     def __del__(self):
         self.Release()
@@ -85,22 +85,31 @@ class HwpManager:
 
     @classmethod
     def _RenewSecurityModule(cls):
-        _len = len(cls._hwps)
+        num = len(cls._hwps)
         
-        if _len < 1:
+        if num < 1:
             HwpSecurityModule.Unregister()
-        elif _len == 1:
+        elif num == 1:
             HwpSecurityModule.Register()
 
-    def New(self):
-        self.__class__._hwps.append(InstanceOccupied(_new_hwp(), True))
+    def _AfterAppend(self):
         self._hwp_id = -1
         self._RenewSecurityModule()
+
+    @classmethod
+    def _DequeInvalidHwp(cls):
+        invalids = tuple(hwp for hwp in cls._hwps if not _is_alive_hwp(hwp))
+
+        for invalid_hwp in invalids:
+            cls._hwps.remove(invalid_hwp)
+        
+    def New(self):
+        self.__class__._hwps.append(InstanceOccupied(_new_hwp(), True))
+        self._AfterAppend()
 
     def Grab(self):
         self.__class__._hwps.append(InstanceOccupied(_grab_hwp(), True))
-        self._hwp_id = -1
-        self._RenewSecurityModule()
+        self._AfterAppend()
 
     def Select(self, nth):
         hwps = self.__class__._hwps
@@ -111,7 +120,7 @@ class HwpManager:
             hwps[self._hwp_id].occupied = False
             self._hwp_id = hwp_id
         else:
-            IndexError("Pre-ocuupied Instance Selected")
+            ValueError("Pre-ocuupied Instance Selected")
 
     def Release(self):
         if self._hwp_id is not None:
