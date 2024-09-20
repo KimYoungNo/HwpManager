@@ -17,8 +17,9 @@ def _enumerate_hwps():
     return tuple(com32.Dispatch(running_coms.GetObject(moniker).QueryInterface(IID_IDispatch))
         for moniker in hwp_monikers)
 
-def _grab_hwnd_hwp():
+def _grab_hwp():
     hwnd = gui32.GetForegroundWindow()
+    hwp = None
 
     if hwnd != 0:
         window_name = gui32.GetWindowText(hwnd)
@@ -28,13 +29,10 @@ def _grab_hwnd_hwp():
                 filepath, filename = hwp.XHwpDocuments.Active_XHwpDocument.FullName.rsplit('\\')
             
                 if f"{filename} [{filepath}\\] - 한글" == window_name:
-                    return hwnd, _register_hwp(hwp)
+                    hwp = _register_hwp(hwp)
             except:
                 continue
-    return None, None
-
-def _grab_hwp():
-    return _grab_hwnd_hwp()[1]
+    return hwp
     
 def _new_hwp():
     hwp = win32.gencache.EnsureDispatch("HWPFrame.HwpObject")
@@ -44,33 +42,33 @@ def _register_hwp(hwp):
     hwp.RegisterModule("FilePathCheckDLL", str(HwpSecurityModule))
     return hwp
 
-def _is_alive_hwp(hwp):
-    try:
-        hwp.XHwpDocuments.Active_XHwpDocument.FullName
-    except:
-        return False
-    else:
-        return True
+class _HwpWrapper:
+    def __init__(self, hwp):
+        self._hwp = hwp
 
-@dataclass(init=True)
-class InstanceOccupied:
-    instance: object
-    occupied: bool
-    
+    def __getattr__(self, name):
+        return getattr(self._hwp, name)
+
+    def __del__(self):
+        self._hwp.Quit()
+
+    def __str__(self):
+        return self._hwp.XHwpDocuments.Active_XHwpDocument.FullName
+
     def __bool__(self):
-        return self.occupied
+        try:
+            self._hwp.CheckXObject(True)
+        except:
+            return False
+        else:
+            return True
+    
 
 class HwpManager:
     _hwps = deque()
         
     def __init__(self, hwp_id=None):
         self._hwp_id = hwp_id
-
-    def __getattr__(self, name):
-        if self._hwp_id is not None:
-            return getattr(self.__class__._hwps[self._hwp_id].instance, name)
-        else:
-            raise ValueError()
 
     def __del__(self):
         self.Release()
@@ -81,7 +79,7 @@ class HwpManager:
 
     @classmethod
     def __getitem__(cls, index):
-        return cls._hwps[index].instance
+        return cls._hwps[index]
 
     @classmethod
     def _RenewSecurityModule(cls):
@@ -98,17 +96,17 @@ class HwpManager:
 
     @classmethod
     def _DequeInvalidHwp(cls):
-        invalids = tuple(hwp for hwp in cls._hwps if not _is_alive_hwp(hwp))
+        invalids = tuple(hwp for hwp in cls._hwps if not hwp)
 
         for invalid_hwp in invalids:
             cls._hwps.remove(invalid_hwp)
         
     def New(self):
-        self.__class__._hwps.append(InstanceOccupied(_new_hwp(), True))
+        self.__class__._hwps.append(_HwpWrapper(_new_hwp()))
         self._AfterAppend()
 
     def Grab(self):
-        self.__class__._hwps.append(InstanceOccupied(_grab_hwp(), True))
+        self.__class__._hwps.append(_HwpWrapper(_grab_hwp()))
         self._AfterAppend()
 
     def Select(self, nth):
@@ -123,16 +121,14 @@ class HwpManager:
             ValueError("Pre-ocuupied Instance Selected")
 
     def Release(self):
-        if self._hwp_id is not None:
-            self.__class__._hwps[self._hwp_id].occupied = False
-            self._hwp_id = None
+        self._hwp_id = None
         self._RenewSecurityModule()
     
     @classmethod
-    def QuitAll(cls):
+    def KillAll(cls):
         for hwp in cls._hwps:
             try:
-                hwp.instance.Quit()
+                del hwp
             except:
                 pass
         cls._hwps.clear()
