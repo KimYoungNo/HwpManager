@@ -17,14 +17,14 @@ def _RunBatch(batch_path, **kwargs):
 
 
 class HwpSecurityModule:
-    def __str__(self):
-        return "HwpSecurityModule.dll"
-        
-    def __enter__(self):
+    def __init__(self):
         self.Register()
         
-    def __exit__(self, *_):
+    def __del__(self):
         self.Unregister()
+        
+    def __str__(self):
+        return "HwpSecurityModule.dll"
 
     @staticmethod
     def Register():
@@ -33,3 +33,6 @@ class HwpSecurityModule:
     @staticmethod
     def Unregister():
         return _RunBatch(HwpSecurityReg.unregister_path.value, timeout=5)
+
+
+FilePathCheckDLL = HwpSecurityModule()
