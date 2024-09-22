@@ -24,7 +24,7 @@ class HwpSecurityModule:
         self.Unregister()
         
     def __str__(self):
-        return "HwpSecurityModule.dll"
+        return "HwpSecurityModule"
 
     @staticmethod
     def Register():
