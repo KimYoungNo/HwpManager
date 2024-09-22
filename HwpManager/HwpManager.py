@@ -25,18 +25,17 @@ def _grab_hwp():
                 filename = hwp.XHwpDocuments.Active_XHwpDocument.FullName.rsplit('\\', 1)[-1]
 
                 if filename in window_name and window_name[-4:] == "- 한글":
-                    return hwp
+                    return HwpWrapper(hwp)
             except:
                 continue
     return None
     
 def _new_hwp():
-    return com32.gencache.EnsureDispatch("HWPFrame.HwpObject")
+    return HwpWrapper(com32.gencache.EnsureDispatch("HWPFrame.HwpObject"))
 
 class _HwpQueue(deque):
     def __del__(self):
         self._deque_all()
-        super().__del__()
             
     def __delitem__(self, index):
         self[index].__del__()
@@ -46,9 +45,6 @@ class _HwpQueue(deque):
         while super().__len__():
             hwp = super().pop()
             del hwp
-    
-    def append(self, hwp):
-        super().append(HwpWrapper(hwp))
 
 class HwpManager:
     _inst = None
@@ -101,7 +97,7 @@ class HwpManager:
     def Grab(self):
         hwp = None
         
-        while hwp is not None:
+        while hwp is None:
             hwp = _grab_hwp()
             
         if hwp in self.hwps:
