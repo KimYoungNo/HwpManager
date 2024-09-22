@@ -82,7 +82,7 @@ class HwpWrapper:
             arg="versionwarning:False;forceopen:True;suspendpassword:True")
             
     def HParameterSet(self, hparam, action_obj):
-        return self._HParameterSet(self._hwp, str(hparam), str(action_obj))
+        return _HParameterSet(self._hwp, str(hparam), str(action_obj))
     
     @property
     def Run(self):
