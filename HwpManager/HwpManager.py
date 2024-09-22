@@ -22,21 +22,29 @@ def _grab_hwp():
         
         for hwp in _enumerate_hwps():
             try:
-                filepath, filename = hwp.XHwpDocuments.Active_XHwpDocument.FullName.rsplit('\\', 1)
-                
-                if f"{filename} [{filepath}\\] - 한글" == window_name:
+                filename = hwp.XHwpDocuments.Active_XHwpDocument.FullName.rsplit('\\', 1)[-1]
+
+                if filename in window_name and window_name[-4:] == "- 한글":
                     return hwp
             except:
                 continue
     return None
     
 def _new_hwp():
-    hwp = com32.gencache.EnsureDispatch("HWPFrame.HwpObject")
-    return hwp
+    return com32.gencache.EnsureDispatch("HWPFrame.HwpObject")
 
 class _HwpQueue(deque):
     def __del__(self):
-        for hwp in self:
+        self._deque_all()
+        super().__del__()
+            
+    def __delitem__(self, index):
+        self[index].__del__()
+        super().__delitem__(index)
+        
+    def _deque_all(self):
+        while super().__len__():
+            hwp = super().pop()
             del hwp
     
     def append(self, hwp):
@@ -67,58 +75,60 @@ class HwpManager:
         return cls._hwps[index]
         
     def __bool__(self):
-        return bool(self.__class__._hwps[self._hwp_id])
+        return bool(self.hwp)
         
     def __getattr__(self, name):
-        return getattr(self.__class__._hwps[self._hwp_id], name)
+        return getattr(self.hwp, name)
         
-    def New(self):
-        self.__class__._hwps.append(_new_hwp())
+    @classmethod
+    @property
+    def hwps(cls):
+        return cls._hwps
+    
+    @property
+    def hwp(self):
+        return self.hwps[self._hwp_id]
+        
+    def New(self, filepath=''):
+        hwp = _new_hwp()
+        
+        if filepath:
+            hwp.Open(filepath)
+            
+        self.hwps.append(hwp)
         self._hwp_id = -1
 
     def Grab(self):
-        hwps = self.__class__._hwps
         hwp = None
         
-        while True:
+        while hwp is not None:
             hwp = _grab_hwp()
             
-            if hwp is not None:
-                break
-            
-        if hwp in hwps:
+        if hwp in self.hwps:
             self._hwp_id = hwps.index(hwp)
         else:
-            hwps.append(hwp)
+            self.hwps.append(hwp)
             self._hwp_id = -1
 
     def Select(self, index):
         self._hwp_id = index % len(self)
 
     def Release(self):
-        hwps = self.__class__._hwps
-        
-        hwps[self._hwp_id]._Release()
-        del hwps[self._hwp_id]
+        self.hwp._Release()
+        self.hwps.remove(self.hwp)
         self._hwp_id = -1
         
     def Refresh(self):
-        hwps = self.__class__._hwps
-        invalids = tuple(hwp for hwp in hwps if not hwp)
+        invalids = tuple(hwp for hwp in self.hwps if not hwp)
 
         for invalid_hwp in invalids:
-            hwps.remove(invalid_hwp)
+            self.hwps.remove(invalid_hwp)
         
         if invalids:
             self._hwp_id = -1
     
     def KillAll(self):
-        hwps = self.__class__._hwps
-        
-        for hwp in hwps:
-            del hwp
-                
-        hwps.clear()
+        self.hwps._deque_all()
         self._hwp_id = -1
     
     @property
