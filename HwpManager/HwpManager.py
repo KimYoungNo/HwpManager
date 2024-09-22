@@ -1,10 +1,8 @@
-import time
 import pythoncom as pycom
 import win32gui as gui32
 import win32com.client as com32
 from collections import deque
-from dataclasses import dataclass
-from ._HwpRegistery import FilePathCheckDLL
+from .HwpWrapper import HwpWrapper
 
 def _enumerate_hwps():
     context = pycom.CreateBindCtx(0)
@@ -36,56 +34,13 @@ def _new_hwp():
     hwp = com32.gencache.EnsureDispatch("HWPFrame.HwpObject")
     return hwp
 
-def _register_hwp(hwp):
-    hwp.RegisterModule("FilePathCheckDLL", str(FilePathCheckDLL))
-    return hwp
-
-class _HwpWrapper:
-    def __init__(self, hwp):
-        self._hwp = _register_hwp(hwp)
-        
-    def __bool__(self):
-        try:
-            self._hwp.XHwpDocuments.Active_XHwpDocument.DocumentID
-        except:
-            return False
-        else:
-            return True
-
-    def __getattr__(self, name):
-        return getattr(self._hwp, name)
-
-    def __del__(self):
-        try:
-            self._hwp.Quit()
-        except:
-            pass
-
-    def __str__(self):
-        if self:
-            return self._hwp.XHwpDocuments.Active_XHwpDocument.FullName
-        else:
-            return ''
-            
-    def Open(self, filepath):
-        self._hwp.Open(filepath,
-            arg="versionwarning:False;forceopen:True;suspendpassword:True")
-            
-    def Visible(self, option=True):
-        if self:
-            self._hwp.XHwpWindows.Item(0).Visible = option
-            
-    def Release(self):
-        self.Visible(True)
-        self._hwp = None
-            
 class _HwpQueue(deque):
     def __del__(self):
         for hwp in self:
             del hwp
     
     def append(self, hwp):
-        super().append(_HwpWrapper(hwp))
+        super().append(HwpWrapper(hwp))
 
 class HwpManager:
     _inst = None
@@ -143,7 +98,7 @@ class HwpManager:
     def Release(self):
         hwps = self.__class__._hwps
         
-        hwps[self._hwp_id].Release()
+        hwps[self._hwp_id]._Release()
         del hwps[self._hwp_id]
         self._hwp_id = -1
         
