@@ -1,0 +1,3 @@
+[submodule "Windows_HwpSecurityModule_Register"]
+	path = Windows_HwpSecurityModule_Register
+	url = https://github.com/KimYoungNo/Windows_HwpSecurityModule_Register.git
