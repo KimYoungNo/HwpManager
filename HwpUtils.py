@@ -1,9 +1,9 @@
 from enum import Enum
 
-def InsertText(hwp, *texts, /, sep='\n'):
+def InsertText(hwp, *texts, sep='\n'):
     for text in texts:
         with hwp.HParameterSet("HInsertText", "InsertText") as HText:
-            HText.Text = str(text)+sep
+            HText.Text = str(text) + sep
 
 
 def PrintPDF(hwp, outputpath, printername, printrange=None):
