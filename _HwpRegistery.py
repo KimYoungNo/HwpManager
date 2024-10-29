@@ -3,11 +3,15 @@ import subprocess
 from enum import Enum
 
 class HwpSecurityReg(str, Enum):
+    name = "HwpSecurityModule"
     base_path = os.path.join(os.path.dirname(__file__), "Windows_HwpSecurityModule_Register")
     register_path = os.path.join(base_path, "Register.bat")
     unregister_path = os.path.join(base_path, "Unregister.bat")
 
-for pth in HwpSecurityReg:
+for idx, pth in enumerate(HwpSecurityReg):
+    if idx == 0:
+        continue
+        
     if not os.path.exists(pth.value):
         raise OSError(f"Unknown Path: {pth.value}")
 
@@ -22,9 +26,6 @@ class HwpSecurityModule:
         
     def __del__(self):
         self.Unregister()
-        
-    def __str__(self):
-        return "HwpSecurityModule"
 
     @staticmethod
     def Register():
@@ -33,6 +34,3 @@ class HwpSecurityModule:
     @staticmethod
     def Unregister():
         return _RunBatch(HwpSecurityReg.unregister_path.value, timeout=5)
-
-
-FilePathCheckDLL = HwpSecurityModule()

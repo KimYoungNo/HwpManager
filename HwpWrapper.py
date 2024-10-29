@@ -1,5 +1,5 @@
 from . import HwpUtils
-from ._HwpRegistery import FilePathCheckDLL
+from ._HwpRegistery import HwpSecurityReg
 
 class _InheritHwp:
     _hwp = None
@@ -12,7 +12,7 @@ class _HRun(_InheritHwp):
     @classmethod
     def __getattr__(cls, name):
         return lambda: cls._hwp.HAction.Run(name)
-            
+
 class _HParameterSet(_InheritHwp):
     _in_action = False
         
@@ -38,9 +38,17 @@ class _HParameterSet(_InheritHwp):
         cls._in_action = False
         
         del self
+        
+class _HUtils:
+    def __init__(self, hwp_wrapper):
+        self._wrap = hwp_wrapper
+        
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: (
+            getattr(HwpUtils, name)(self._wrap, *args, **kwargs))
 
 def _register_hwp(hwp):
-    hwp.RegisterModule("FilePathCheckDLL", str(FilePathCheckDLL))
+    hwp.RegisterModule("FilePathCheckDLL", HwpSecurityReg.name.value)
     return hwp
     
 
@@ -48,6 +56,7 @@ class HwpWrapper:
     def __init__(self, hwp):
         self._hwp = _register_hwp(hwp)
         self._run = _HRun(self._hwp)
+        self._util = _HUtils(self)
         
     def __bool__(self):
         try:
@@ -58,11 +67,7 @@ class HwpWrapper:
             return True
 
     def __getattr__(self, name):
-        try:
-            return getattr(self._hwp, name)
-        except:
-            return lambda *args, **kwargs: (
-                getattr(HwpUtils, name)(self, *args, **kwargs))
+        return getattr(self._hwp, name)
 
     def __del__(self):
         try:
@@ -95,3 +100,7 @@ class HwpWrapper:
     @property
     def Run(self):
         return self._run
+        
+    @property
+    def Util(self):
+        return self._util

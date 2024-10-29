@@ -1,8 +1,8 @@
 import pythoncom as pycom
 import win32gui as gui32
 import win32com.client as com32
-from collections import deque
 from .HwpWrapper import HwpWrapper
+from ._HwpRegistery import HwpSecurityModule
 
 def _enumerate_hwps():
     context = pycom.CreateBindCtx(0)
@@ -33,21 +33,18 @@ def _grab_hwp():
 def _new_hwp():
     return HwpWrapper(com32.gencache.EnsureDispatch("HWPFrame.HwpObject"))
 
-class _HwpQueue(deque):
+class _HwpQueue(list):
     def __del__(self):
         self._deque_all()
-            
-    def __delitem__(self, index):
-        self[index].__del__()
-        super().__delitem__(index)
         
     def _deque_all(self):
-        while super().__len__():
-            hwp = super().pop()
+        while len(self):
+            hwp = self.pop(0)
             del hwp
 
 class HwpManager:
     _inst = None
+    _sec = None
     _hwps = _HwpQueue()
     
     def __new__(cls, *_):
@@ -84,6 +81,10 @@ class HwpManager:
     @property
     def hwp(self):
         return self.hwps[self._hwp_id]
+    
+    @classmethod
+    def MainThread(cls):
+        cls._sec = HwpSecurityModule()
         
     def New(self, filepath=''):
         hwp = _new_hwp()
